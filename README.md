@@ -5,6 +5,10 @@
 ## Overview
 FarShare is a simple yet powerful file-sharing application that allows users to quickly share files and folders over the internet using secure NGROK tunnels. It generates both a shareable link and QR code for easy access.
 
+## Download
+Download the latest version of FarShare:
+[Download FileSharing.dmg](https://github.com/NISHANTTMAURYA/FarShare/blob/main/FileSharing.dmg)
+
 ## Features
 - 🗂️ Share individual files or entire folders
 - 🔗 Generate secure, temporary sharing links
