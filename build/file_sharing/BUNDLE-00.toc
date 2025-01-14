@@ -1,0 +1,3 @@
+([('FileSharing',
+   '/Users/nishantmaurya/Desktop/share/dist/FileSharing',
+   'EXECUTABLE')],)
