@@ -176,19 +176,22 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
                 </li>
                 '''
 
-            # Add download options if there are files
+            # Modified section: Show download options based on content
+            html += '</ul>'
+            
+            # Show "Download All as ZIP" if there are any files OR folders
+            if files or folders:
+                html += f'''
+                    <a href="download-all" class="download-btn download-all">Download All as ZIP</a>
+                '''
+            
+            # Show "Download All Files" only if there are files
             if files:
                 html += f'''
-                    </ul>
-                    <a href="download-all" class="download-btn download-all">Download All as ZIP</a>
                     <a href="#" onclick="downloadAllFiles()" class="download-btn download-all-files">Download All Files</a>
-                </div>
                 '''
-            else:
-                html += '''
-                    </ul>
-                </div>
-                '''
+            
+            html += '</div>'
 
             html += '''
             </body>
