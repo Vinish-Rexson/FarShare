@@ -12,6 +12,10 @@ import ngrok
 import shutil
 import platform
 import sys
+root = tk.Tk()
+root.title("Sharing window")
+import os,shutil
+filename = 'http_server.py'
 
 from tkinter.filedialog import SaveFileDialog,askdirectory
 def cleanup_ports_background():
@@ -26,19 +30,20 @@ def cleanup_ports_background():
                 time.sleep(0.5)  # Brief wait
                 
                 # Additional ngrok process cleanup
-                subprocess.run(['pkill', 'ngrok'], stderr=subprocess.DEVNULL)
-                print("Killed ngrok processes")
+                # subprocess.run(['pkill', 'ngrok'], stderr=subprocess.DEVNULL)
+                # print("Killed ngrok processes")
             except Exception as e:
                 print(f"Note: Ngrok cleanup: {e}")
             
             # Then kill any process on port 8000
             print("Checking for processes on port 8000...")
             try:
-                cmd = "lsof -ti :8000"
+                cmd = get_port_command(8000)
                 pid = subprocess.check_output(cmd, shell=True).decode().strip()
+                
                 if pid:
                     print(f"Found process {pid} on port 8000, killing it...")
-                    subprocess.run(['kill', '-9', pid], stderr=subprocess.DEVNULL)
+                    subprocess.run(['taskkill' if os.name == 'nt' else 'kill', '/F' if os.name == 'nt' else '-9', pid], stderr=subprocess.DEVNULL)
                     print(f"Killed process {pid}")
             except subprocess.CalledProcessError:
                 print("No process found on port 8000")
@@ -62,13 +67,10 @@ def cleanup_ports_background():
 print("Initializing application...")
 cleanup_ports_background()
 
-root = tk.Tk()
-root.title("Sharing window")
-import os,shutil
-filename = 'http_server.py'
+
 
 # Replace 'python3' with 'python' for Windows
-python_cmd = 'python3' if platform.system() != 'Windows' else 'python'
+python_cmd = 'python' if platform.system() != 'Windows' else 'python3'
 
 def resource_path(relative_path):
     try:
@@ -207,8 +209,8 @@ def import_file():
 class app:
     def __init__(self, master):
         self.master = master
-        self.master.geometry("400x600")  # Smaller, mre compact window
-        self.master.configure(bg='#2C2C2C')  # Dark background
+        self.master.geometry("400x600")  
+        self.master.configure(bg='#2C2C2C')  
         self.server_process = None
         self.qr_label = None
         self.url_file = None
@@ -218,7 +220,7 @@ class app:
     def on_closing(self):
         try:
             if self.server_process:
-                # Kill the server process
+                # Kill the server after closing
                 self.server_process.terminate()
                 self.server_process.wait(timeout=1)
             
@@ -463,46 +465,53 @@ class app:
             )
             retry_btn.pack(pady=10)
 
-    def update_shared_content(self, path, is_file=False):
-        print(f"\nAttempting to update shared content:")
-        print(f"Path: {path}")
-        print(f"Is file: {is_file}")
+    # def update_shared_content(self, path, is_file=False):
+    #     print(f"\nAttempting to update shared content:")
+    #     print(f"Path: {path}")
+    #     print(f"Is file: {is_file}")
         
-        if self.server_process and self.server_process.poll() is None:
-            print("Server is running")
-            try:
-                # Update the server's directory
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                server_path = resource_path('http_server.py')
-                print(f"Server path: {server_path}")
+    #     if self.server_process and self.server_process.poll() is None:
+    #         print("Server is running")
+    #         try:
+    #             # Update the server's directory
+    #             script_dir = os.path.dirname(os.path.abspath(__file__))
+    #             server_path = resource_path('http_server.py')
+    #             print(f"Server path: {server_path}")
                 
-                # Use same URL file
-                if not hasattr(self, 'url_file'):
-                    self.url_file = os.path.join(script_dir, 'share_url.txt')
-                print(f"URL file: {self.url_file}")
+    #             # Use same URL file
+    #             if not hasattr(self, 'url_file'):
+    #                 self.url_file = os.path.join(script_dir, 'share_url.txt')
+    #             print(f"URL file: {self.url_file}")
                 
-                # Update the server's directory
-                print("Loading server module...")
-                spec = importlib.util.spec_from_file_location("http_server", server_path)
-                server_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(server_module)
+    #             # Update the server's directory
+    #             print("Loading server module...")
+    #             spec = importlib.util.spec_from_file_location("http_server", server_path)
+    #             server_module = importlib.util.module_from_spec(spec)
+    #             spec.loader.exec_module(server_module)
                 
-                print("Calling update_directory...")
-                if server_module.MyHttpRequestHandler.update_directory(path, is_file):
-                    print("Update successful, refreshing page...")
-                    # Refresh the page to show current content
-                    self.page2()
-                else:
-                    print("Update failed")
-                    tk.messagebox.showerror("Error", "Failed to update shared content")
-            except Exception as e:
-                print(f"Error during update: {e}")
-                print(f"Exception type: {type(e)}")
-                print(f"Traceback: {traceback.format_exc()}")
-                tk.messagebox.showerror("Error", f"Error updating shared content: {e}")
-        else:
-            print("Server not running")
-            tk.messagebox.showerror("Error", "Server not running")
+    #             print("Calling update_directory...")
+    #             if server_module.MyHttpRequestHandler.update_directory(path, is_file):
+    #                 print("Update successful, refreshing page...")
+    #                 # Refresh the page to show current content
+    #                 self.page2()
+    #             else:
+    #                 print("Update failed")
+    #                 tk.messagebox.showerror("Error", "Failed to update shared content")
+    #         except Exception as e:
+    #             print(f"Error during update: {e}")
+    #             print(f"Exception type: {type(e)}")
+    #             print(f"Traceback: {traceback.format_exc()}")
+    #             tk.messagebox.showerror("Error", f"Error updating shared content: {e}")
+    #     else:
+    #         print("Server not running")
+    #         tk.messagebox.showerror("Error", "Server not running")
+
+def get_port_command(port):
+    """Get the appropriate command to check port based on OS"""
+    if os.name == 'nt':  # Windows
+        return f"netstat -ano | findstr :{port}"
+    else:  # Unix/Linux/Mac
+        return f"lsof -ti :{port}"
 
 app(root)
 
