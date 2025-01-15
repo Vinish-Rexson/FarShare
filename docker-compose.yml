@@ -1,0 +1,8 @@
+version: '3'
+services:
+  fileshare:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./shared:/app/shared 

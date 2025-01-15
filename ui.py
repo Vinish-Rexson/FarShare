@@ -6,7 +6,6 @@ import time
 import subprocess
 import os
 import threading
-import importlib.util
 import traceback
 import ngrok
 import shutil
@@ -67,10 +66,25 @@ def cleanup_ports_background():
 print("Initializing application...")
 cleanup_ports_background()
 
+def get_python_command():
+    """Dynamically determine the correct Python command"""
+    try:
+        # Try 'python3' first
+        subprocess.run(['python3', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return 'python3'
+    except FileNotFoundError:
+        try:
+            # Try 'python' if 'python3' fails
+            subprocess.run(['python', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return 'python'
+        except FileNotFoundError:
+            # If both fail, try sys.executable (current Python interpreter)
+            if sys.executable:
+                return sys.executable
+            raise Exception("No Python interpreter found")
 
-
-# Replace 'python3' with 'python' for Windows
-python_cmd = 'python' if platform.system() != 'Windows' else 'python3'
+# Replace the existing python_cmd line with:
+python_cmd = get_python_command()
 
 def resource_path(relative_path):
     try:
@@ -82,7 +96,7 @@ def resource_path(relative_path):
 def import_folder():
     try:
         options = {
-            "initialdir": "C:/Users/Username/Documents",
+            "initialdir": os.path.expanduser("~"),  # Use home directory as initial dir
             "title": "Select a Folder"
         }
 
@@ -94,7 +108,6 @@ def import_folder():
         print(f"Selected path: {file_path}")
         
         try:
-            import subprocess
             script_dir = os.path.dirname(os.path.abspath(__file__))
             server_path = resource_path('http_server.py')
             url_file = os.path.join(script_dir, 'share_url.txt')
@@ -106,11 +119,18 @@ def import_folder():
             # Create new app instance with clean state
             change_page = app(root)
             change_page.url_file = url_file
-            change_page.server_process = subprocess.Popen([python_cmd, server_path, file_path, 'folder', url_file])
+            
+            # Use the full path to Python interpreter when starting server
+            cmd = [python_cmd, server_path, file_path, 'folder', url_file]
+            print(f"Executing command: {' '.join(cmd)}")  # Debug print
+            change_page.server_process = subprocess.Popen(cmd)
+            
             change_page.page2()
             
         except Exception as e:
             print(f"Error starting server: {e}")
+            print(f"Command attempted: {python_cmd}")
+            print(f"Full traceback: {traceback.format_exc()}")
         
     except Exception as e:
         print(f"Error in import_folder: {e}")
