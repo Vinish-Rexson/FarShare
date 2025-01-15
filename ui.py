@@ -28,9 +28,13 @@ def cleanup_ports_background():
                 ngrok.kill()  # Kill through pyngrok
                 time.sleep(0.5)  # Brief wait
                 
-                # Additional ngrok process cleanup
-                # subprocess.run(['pkill', 'ngrok'], stderr=subprocess.DEVNULL)
-                # print("Killed ngrok processes")
+                if os.name == 'nt':  # Windows
+                    # Kill ngrok processes using taskkill
+                    subprocess.run(['taskkill', '/F', '/IM', 'ngrok.exe'], stderr=subprocess.DEVNULL)
+                else:
+                    # Unix systems
+                    subprocess.run(['pkill', 'ngrok'], stderr=subprocess.DEVNULL)
+                print("Killed ngrok processes")
             except Exception as e:
                 print(f"Note: Ngrok cleanup: {e}")
             
@@ -38,12 +42,21 @@ def cleanup_ports_background():
             print("Checking for processes on port 8000...")
             try:
                 cmd = get_port_command(8000)
-                pid = subprocess.check_output(cmd, shell=True).decode().strip()
-                
-                if pid:
-                    print(f"Found process {pid} on port 8000, killing it...")
-                    subprocess.run(['taskkill' if os.name == 'nt' else 'kill', '/F' if os.name == 'nt' else '-9', pid], stderr=subprocess.DEVNULL)
-                    print(f"Killed process {pid}")
+                if os.name == 'nt':  # Windows
+                    output = subprocess.check_output(cmd, shell=True).decode()
+                    # Parse Windows netstat output to get PID
+                    for line in output.splitlines():
+                        if ':8000' in line:
+                            pid = line.strip().split()[-1]
+                            print(f"Found process {pid} on port 8000, killing it...")
+                            subprocess.run(['taskkill', '/F', '/PID', pid], stderr=subprocess.DEVNULL)
+                            print(f"Killed process {pid}")
+                else:
+                    # Unix systems
+                    pid = subprocess.check_output(cmd, shell=True).decode().strip()
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], stderr=subprocess.DEVNULL)
+                        print(f"Killed process {pid}")
             except subprocess.CalledProcessError:
                 print("No process found on port 8000")
             except Exception as e:
@@ -51,8 +64,6 @@ def cleanup_ports_background():
 
             # Wait for ports to be fully released
             time.sleep(0.5)
-            
-            # Don't clean temp directory here anymore
             
         except Exception as e:
             print(f"Error during cleanup: {e}")
@@ -69,22 +80,47 @@ cleanup_ports_background()
 def get_python_command():
     """Dynamically determine the correct Python command"""
     try:
-        # Try 'python3' first
-        subprocess.run(['python3', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return 'python3'
-    except FileNotFoundError:
-        try:
-            # Try 'python' if 'python3' fails
-            subprocess.run(['python', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # First check if we're running in Docker
+        if os.path.exists('/.dockerenv'):
             return 'python'
-        except FileNotFoundError:
-            # If both fail, try sys.executable (current Python interpreter)
+        
+        # Check if we're on Windows
+        if platform.system() == 'Windows':
+            # Try using sys.executable first (most reliable on Windows)
             if sys.executable:
                 return sys.executable
-            raise Exception("No Python interpreter found")
+            
+            # Fallbacks for Windows
+            try:
+                subprocess.run(['py', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                return 'py'
+            except FileNotFoundError:
+                try:
+                    subprocess.run(['python', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    return 'python'
+                except FileNotFoundError:
+                    raise Exception("Python interpreter not found on Windows")
+        else:
+            # Unix-like systems
+            try:
+                subprocess.run(['python3', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                return 'python3'
+            except FileNotFoundError:
+                try:
+                    subprocess.run(['python', '--version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    return 'python'
+                except FileNotFoundError:
+                    if sys.executable:
+                        return sys.executable
+                    raise Exception("No Python interpreter found")
+    except Exception as e:
+        print(f"Warning: Error detecting Python command: {e}")
+        # Last resort: return sys.executable or 'python'
+        return sys.executable if sys.executable else 'python'
 
 # Replace the existing python_cmd line with:
 python_cmd = get_python_command()
+print(f"Using Python command: {python_cmd}")  # Debug line
 
 def resource_path(relative_path):
     try:
